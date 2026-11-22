@@ -83,6 +83,7 @@ body {
 .day .lo { color: var(--muted); text-align: right; }
 .day .hi { text-align: right; font-weight: 600; }
 .day .c { color: var(--muted); font-size: .9rem; }
+.foot a { color: var(--primary); }
 .foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: .8rem; margin-top: 8px; }
 @media (max-width: 640px) {
   .now { grid-template-columns: 1fr; }
