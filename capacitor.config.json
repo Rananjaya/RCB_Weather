@@ -1,0 +1,7 @@
+{
+  "appId": "com.rcb.weather",
+  "appName": "RCB Weather",
+  "webDir": "www",
+  "backgroundColor": "#100d1c",
+  "ios": { "contentInset": "never" }
+}
