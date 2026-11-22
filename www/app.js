@@ -4,6 +4,10 @@
 'use strict';
 
 const $ = id => document.getElementById(id);
+// Push alerts server (push-worker/): sends alerts even when the app is closed.
+const PUSH_API = 'https://rcb-weather-alerts.rananjayabandara.workers.dev';
+const VAPID_PUBLIC = 'BAZG3q7Ru5jzaIrz1x1909hOXhlSw51ITSTixRoBv_CqNP_0lo27VzvHKQpZvuxZq04NCzErMwM9sOqil88560Y';
+
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem('rcbw.' + k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rcbw.' + k, JSON.stringify(v)); } catch { /* private mode */ } },
@@ -390,6 +394,7 @@ async function notify(title, body, tag) {
 
 function checkAlerts(model, air) {
   if (store.get('alerts', 'off') !== 'on' || !('Notification' in window) || Notification.permission !== 'granted') return;
+  if (store.get('push', false)) return; // the alerts server sends them (also when the app is closed)
   const loc = state.location, where = loc.name, id = `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`;
   const sent = store.get('alerted', {});
 
@@ -420,6 +425,46 @@ function checkAlerts(model, air) {
   store.set('alerted', sent);
 }
 
+// Real push (app closed too): subscribe this device with the alerts server. Where push is not
+// available (e.g. the desktop apps), the app checks by itself while it is running instead.
+const b64ToBytes = b => Uint8Array.from(atob(b.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - b.length % 4) % 4)), c => c.charCodeAt(0));
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+
+async function pushSync(force = false, welcome = false) {
+  const loc = state.location;
+  if (!loc || !('serviceWorker' in navigator) || !('PushManager' in window)) { store.set('push', false); return false; }
+  const sig = `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)},${loc.name}`;
+  const lastSync = store.get('pushSync', {});
+  try {
+    const reg = await withTimeout(navigator.serviceWorker.ready, 10000);
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await withTimeout(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) }), 15000);
+    if (force || lastSync.sig !== sig || lastSync.endpoint !== sub.endpoint || Date.now() - (lastSync.at || 0) > 864e5) {
+      const r = await fetch(`${PUSH_API}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ welcome, subscription: sub.toJSON(), lat: loc.lat, lon: loc.lon, name: loc.name, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      store.set('pushSync', { sig, endpoint: sub.endpoint, at: Date.now() });
+    }
+    store.set('push', true);
+    return true;
+  } catch {
+    store.set('push', false);
+    return false;
+  }
+}
+
+async function pushOff() {
+  store.set('push', false); store.set('pushSync', {});
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (sub) {
+      await fetch(`${PUSH_API}/unsubscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+      await sub.unsubscribe();
+    }
+  } catch { /* nothing to undo */ }
+}
+
 $('alerts').value = store.get('alerts', 'off');
 $('alerts').onchange = async e => {
   let on = e.target.value === 'on';
@@ -431,8 +476,13 @@ $('alerts').onchange = async e => {
   }
   e.target.value = on ? 'on' : 'off';
   store.set('alerts', e.target.value);
-  if (on) { notify('RCB Weather alerts are on', 'You will be told about bad air and heavy rain ahead.', 'rcbw-test'); refresh(true); }
+  if (!on) { pushOff(); return; }
+  // With push, the server sends the confirmation as a real push; otherwise the app shows it.
+  if (!await pushSync(true, true)) notify('RCB Weather alerts are on', 'You will be told about bad air and heavy rain ahead while RCB Weather is open.', 'rcbw-test');
+  refresh(true);
 };
+// Keep the server's copy of this device's place up to date.
+if (store.get('alerts', 'off') === 'on') setTimeout(() => pushSync(), 3000);
 
 let last = null;
 async function refresh(silent = false) {
@@ -457,6 +507,7 @@ function setLocation(loc) {
   state.location = loc;
   store.set('location', loc);
   refresh();
+  if (store.get('alerts', 'off') === 'on') pushSync();
 }
 
 // ---------------------------------------------------------------- location: current + search

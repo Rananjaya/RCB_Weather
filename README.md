@@ -21,7 +21,8 @@
 - **Air quality:** a colour gauge with the US AQI, its level and advice, plus PM2.5, PM10,
   ozone, NO₂, SO₂, CO and the European AQI.
 - **Alerts:** a notification when the air turns bad (US AQI over 100) or heavy rain or a
-  thunderstorm is expected in the next 6 hours.
+  thunderstorm is expected in the next 6 hours — on phones and in browsers even when the app is
+  closed (push), and in the Windows and Mac apps while they are running.
 - **Live:** updates by itself every 5 minutes, when you come back to it and when the internet
   returns; a live clock shows how fresh the data is.
 - **Full screen** on every platform, and works offline with the last weather.
@@ -41,14 +42,19 @@ the live site, so they stay up to date without a new download.
 
 ## Privacy
 
-There are no accounts, ads, analytics or tracking, and no RCB Weather server.
+There are no accounts, ads, analytics or tracking.
 
 - Weather requests go straight from your device to the provider you choose, with your location
   rounded to about 1 km.
 - Place search uses Open-Meteo geocoding.
 - Your settings, including an OpenWeatherMap key, are stored only on your device. The key is sent
   only to OpenWeatherMap.
-- Notifications are created on your device; nothing is sent to a push service.
+- **Alerts (only if you turn them on):** to send alerts when the app is closed, the RCB Weather
+  alerts server (a Cloudflare Worker, `push-worker/`) stores your browser's push address, your
+  place rounded to about 1 km, its name and your time zone. It checks that place's forecast every
+  15 minutes. Push messages are empty; your device fetches the alert text from the server. The
+  data is deleted when you turn Alerts off or the push address stops working, and is never shared
+  or used for anything else.
 
 ## For developers
 
@@ -66,6 +72,7 @@ A place can be set in the address: `?lat=6.93&lon=79.86&name=Colombo`.
 | `www/` | The web app (also used by every app build) |
 | `electron/` | Windows and Mac app (Electron) |
 | `ios/` | iPhone and iPad app (Capacitor): `npm run ios`, then choose your team in Xcode |
+| `push-worker/` | Alerts server (Cloudflare Worker + KV, cron every 15 min): `npx wrangler deploy`. Its private VAPID key is a Worker secret and is not in this repo. |
 | `.github/workflows/pages.yml` | Publishes `www/` to GitHub Pages on every push to `main` |
 
 ## Contributing

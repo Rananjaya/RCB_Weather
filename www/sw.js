@@ -1,6 +1,6 @@
 /* Offline support: the app shell is cached; weather requests go to the network and fall back to
  * the last successful response, so the app still opens (with the last data) without internet. */
-const SHELL = 'rcbw-shell-v9';
+const SHELL = 'rcbw-shell-v10';
 const DATA = 'rcbw-data-v1';
 const FILES = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icons/app-192.png', './icons/app-512.png'];
 
@@ -33,3 +33,17 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list =>
     list.length ? list[0].focus() : self.clients.openWindow('./')));
 });
+
+// Push alerts from the alerts server (push-worker/). Pushes are empty; the message is fetched here.
+const PUSH_API = 'https://rcb-weather-alerts.rananjayabandara.workers.dev';
+self.addEventListener('push', e => e.waitUntil((async () => {
+  let msgs = [];
+  try {
+    const sub = await self.registration.pushManager.getSubscription();
+    const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sub.endpoint)));
+    const id = [...hash].map(b => b.toString(16).padStart(2, '0')).join('');
+    msgs = await (await fetch(`${PUSH_API}/messages?id=${id}`, { cache: 'no-store' })).json();
+  } catch { /* show the fallback below */ }
+  if (!Array.isArray(msgs) || !msgs.length) msgs = [{ title: 'RCB Weather', body: 'New weather alert. Open RCB Weather to see it.', tag: 'rcbw-alert' }];
+  await Promise.all(msgs.map(m => self.registration.showNotification(m.title, { body: m.body, tag: m.tag, icon: 'icons/app-192.png', badge: 'icons/app-192.png' })));
+})()));
