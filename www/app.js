@@ -372,48 +372,6 @@ function renderAir(a) {
   $('airNote').textContent = `${note} US AQI. Air quality data: Open-Meteo.com / Copernicus CAMS (CC BY 4.0).`;
 }
 
-// ---------------------------------------------------------------- satellite & radar (MET Norway)
-
-const MET_IMG = 'https://api.met.no/weatherapi';
-/** Geostationary satellite area for a location; "global" covers everywhere. */
-function satArea(lat, lon) {
-  if (lat >= 33 && lat <= 75 && lon >= -30 && lon <= 45) return { area: 'europe', visible: true, label: 'Europe' };
-  if (lat >= 28 && lat < 33 && lon >= -10 && lon <= 40) return { area: 'mediterranean', visible: true, label: 'Mediterranean' };
-  if (lat >= -40 && lat < 33 && lon >= -20 && lon <= 55) return { area: 'africa', visible: true, label: 'Africa' };
-  if (lat >= -10 && lat <= 65 && lon >= -80 && lon < -20) return { area: 'atlantic_ocean', visible: false, label: 'Atlantic' };
-  return { area: 'global', visible: false, label: 'World' };
-}
-const inNordic = (lat, lon) => lat >= 54 && lat <= 72 && lon >= 3 && lon <= 33;
-
-let imageryTab = store.get('imageryTab', 'ir');
-function renderImagery() {
-  const { lat, lon } = state.location;
-  const sat = satArea(lat, lon);
-  const tabs = [
-    { id: 'ir', label: `Satellite · infrared (${sat.label})`, url: `${MET_IMG}/geosatellite/1.4/?area=${sat.area}&size=normal&type=infrared`,
-      note: 'Infrared satellite image: brighter = colder, higher clouds. Works day and night.' },
-  ];
-  if (sat.visible) tabs.push({ id: 'vis', label: `Satellite · visible (${sat.label})`, url: `${MET_IMG}/geosatellite/1.4/?area=${sat.area}&size=normal&type=visible`,
-    note: 'Visible-light satellite image: clouds as seen from space (daylight only).' });
-  if (inNordic(lat, lon)) tabs.push({ id: 'radar', label: 'Radar · rain (animation)', url: `${MET_IMG}/radar/2.0/?area=nordic&content=animation&type=reflectivity`,
-    note: 'Weather radar for the Nordic region: where it is raining or snowing now.' });
-  if (!tabs.some(t => t.id === imageryTab)) imageryTab = tabs[0].id;
-  const tab = tabs.find(t => t.id === imageryTab);
-  // MET Norway rejects unknown query parameters, so no cache-buster: its short cache headers keep
-  // images current, and re-setting src on each refresh makes the browser revalidate.
-  $('imageryCard').hidden = false;
-  $('imageryTabs').innerHTML = tabs.map(t => `<button type="button" role="tab" aria-selected="${t.id === imageryTab}" data-id="${t.id}">${t.label}</button>`).join('');
-  $('imageryTabs').onclick = e => {
-    const b = e.target.closest('button[data-id]');
-    if (!b) return;
-    imageryTab = b.dataset.id; store.set('imageryTab', imageryTab); renderImagery();
-  };
-  $('imagery').src = tab.url;
-  $('imagery').alt = tab.label;
-  $('imageryLink').href = tab.url;
-  $('imageryNote').textContent = `${tab.note} Images: MET Norway (CC BY 4.0). Tap to open full size.`;
-}
-
 let last = null;
 async function refresh(silent = false) {
   if (!state.location) { $('status').textContent = 'Search a place or use your location.'; return; }
@@ -424,7 +382,6 @@ async function refresh(silent = false) {
     last = model;
     render(last);
     renderAir(air);
-    renderImagery();
     updatedAt = Date.now();
     $('status').textContent = `${p.name} · ${state.location.name}`;
     tick();

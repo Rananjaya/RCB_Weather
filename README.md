@@ -9,9 +9,7 @@ A live weather dashboard in plain HTML, CSS and JavaScript — no build step, no
   next 24 hours (with rain chance and wind) and next days (with rain, wind and UV); °C / °F.
 - **Air quality:** US AQI with level and advice, PM2.5, PM10, ozone, NO₂, SO₂, CO (Open-Meteo /
   Copernicus CAMS, no key; shown for every provider).
-- **Satellite & radar:** MET Norway geostationary satellite images (infrared everywhere, visible
-  for Europe/Africa/Mediterranean) and, for Nordic locations, the radar animation.
-- **Live:** refreshes every 10 minutes and when you return to the tab; live clock.
+- **Live:** refreshes every 5 minutes and when you return to the tab; live clock.
 - **Icons:** the original RCB Wake weather icons (`icons/`).
 
 ## Run
