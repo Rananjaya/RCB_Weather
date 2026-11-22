@@ -383,8 +383,12 @@ function renderAir(a) {
 
 const ROUGH = new Set(['HEAVY_RAIN', 'THUNDERSTORM']);
 
+const IS_DESKTOP_APP = /Electron/.test(navigator.userAgent);
 async function notify(title, body, tag) {
   const opts = { body, tag, icon: 'icons/app-192.png', badge: 'icons/app-192.png' };
+  // The desktop apps show notifications through the system directly (service-worker notifications
+  // are not shown there).
+  if (IS_DESKTOP_APP) { try { new Notification(title, opts).onclick = () => window.focus(); } catch { /* unavailable */ } return; }
   try {
     const reg = 'serviceWorker' in navigator && await navigator.serviceWorker.getRegistration();
     if (reg) return await reg.showNotification(title, opts);
@@ -432,7 +436,7 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeou
 
 async function pushSync(force = false, welcome = false) {
   const loc = state.location;
-  if (!loc || !('serviceWorker' in navigator) || !('PushManager' in window)) { store.set('push', false); return false; }
+  if (!loc || IS_DESKTOP_APP || !('serviceWorker' in navigator) || !('PushManager' in window)) { store.set('push', false); return false; }
   const sig = `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)},${loc.name}`;
   const lastSync = store.get('pushSync', {});
   try {

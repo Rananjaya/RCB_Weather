@@ -6,8 +6,11 @@ const path = require('path');
 const LIVE = 'https://rananjaya.github.io/RCB_Weather/';
 const LOCAL = path.join(__dirname, '..', 'www', 'index.html');
 
+let win;
+let quitting = false;
+
 function create() {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 1200,
     height: 800,
     fullscreen: true,
@@ -27,9 +30,20 @@ function create() {
     if (input.key === 'F11') win.setFullScreen(!win.isFullScreen());
     if (input.key === 'Escape' && win.isFullScreen()) win.setFullScreen(false);
   });
+  // Mac: closing the window keeps RCB Weather running in the Dock, so weather alerts keep coming.
+  // Cmd+Q quits. Clicking the Dock icon brings the window back.
+  win.on('close', e => {
+    if (process.platform === 'darwin' && !quitting) {
+      e.preventDefault();
+      if (win.isFullScreen()) { win.once('leave-full-screen', () => win.hide()); win.setFullScreen(false); } else win.hide();
+    }
+  });
   // Links (e.g. provider sites) open in the normal browser.
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
+
+// Windows: needed for notifications to show with the app's name.
+if (process.platform === 'win32') app.setAppUserModelId('com.rcb.weather');
 
 app.whenReady().then(() => {
   // Allow "My location" (the only permission the dashboard asks for).
@@ -37,4 +51,6 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'geolocation' || permission === 'notifications');
   create();
 });
-app.on('window-all-closed', () => app.quit());
+app.on('before-quit', () => { quitting = true; });
+app.on('activate', () => { if (win) { win.show(); win.focus(); } else create(); });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
