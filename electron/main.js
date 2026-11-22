@@ -42,8 +42,9 @@ function create() {
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
-// Windows: needed for notifications to show with the app's name.
-if (process.platform === 'win32') app.setAppUserModelId('com.rcb.weather');
+// Windows: notifications need an app ID. The zip version is not installed (no Start-menu
+// shortcut), so the .exe path is used as the ID, which Windows accepts without a shortcut.
+if (process.platform === 'win32') app.setAppUserModelId(process.execPath);
 
 app.whenReady().then(() => {
   // Allow "My location" (the only permission the dashboard asks for).
