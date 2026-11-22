@@ -15,7 +15,7 @@ function create() {
     title: 'RCB Weather',
     autoHideMenuBar: true,
     icon: path.join(__dirname, '..', 'www', 'icons', 'app-512.png'),
-    webPreferences: { contextIsolation: true, sandbox: true },
+    webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false },
   });
   win.removeMenu();
   win.loadURL(LIVE).catch(() => win.loadFile(LOCAL));
@@ -33,8 +33,8 @@ function create() {
 
 app.whenReady().then(() => {
   // Allow "My location" (the only permission the dashboard asks for).
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'geolocation'));
-  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'geolocation');
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'geolocation' || permission === 'notifications'));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'geolocation' || permission === 'notifications');
   create();
 });
 app.on('window-all-closed', () => app.quit());

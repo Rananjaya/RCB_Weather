@@ -372,6 +372,68 @@ function renderAir(a) {
   $('airNote').textContent = `${note} US AQI. Air quality data: Open-Meteo.com / Copernicus CAMS (CC BY 4.0).`;
 }
 
+// ---------------------------------------------------------------- alerts (notifications)
+// Sent by the app itself while it is open or running in the background (no server, no push service).
+// Bad air: US AQI above 100, again only if it gets worse the same day. Heavy rain: heavy rain,
+// thunderstorm or ≥ 5 mm expected in the next 6 hours, at most once every 3 hours per place.
+
+const ROUGH = new Set(['HEAVY_RAIN', 'THUNDERSTORM']);
+
+async function notify(title, body, tag) {
+  const opts = { body, tag, icon: 'icons/app-192.png', badge: 'icons/app-192.png' };
+  try {
+    const reg = 'serviceWorker' in navigator && await navigator.serviceWorker.getRegistration();
+    if (reg) return await reg.showNotification(title, opts);
+  } catch { /* fall back below */ }
+  try { new Notification(title, opts); } catch { /* notifications unavailable */ }
+}
+
+function checkAlerts(model, air) {
+  if (store.get('alerts', 'off') !== 'on' || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const loc = state.location, where = loc.name, id = `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`;
+  const sent = store.get('alerted', {});
+
+  if (air && air.us_aqi > 100) {
+    const level = AQI_LEVELS.findIndex(([max]) => air.us_aqi <= max);
+    const key = `aqi|${id}|${new Date().toDateString()}`;
+    if ((sent[key] ?? -1) < level) {
+      const [, label, , advice] = AQI_LEVELS[level];
+      notify(`Air quality: ${label}`, `${where}: US AQI ${Math.round(air.us_aqi)}. ${advice}`, 'rcbw-air');
+      sent[key] = level;
+    }
+  }
+
+  const soon = Date.now() + 6 * 3600e3;
+  const rain = model.hourly.find(h => h.time.getTime() <= soon && (ROUGH.has(h.cond) || (h.precip ?? 0) >= 5));
+  const rainKey = `rain|${id}`;
+  if (rain && Date.now() - (sent[rainKey] ?? 0) > 3 * 3600e3) {
+    const at = rain.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const what = rain.cond === 'THUNDERSTORM' ? 'Thunderstorm' : 'Heavy rain';
+    const amount = rain.precip != null ? ` (${rain.precip.toFixed(1)} mm in that hour)` : '';
+    notify(`${what} ahead`, `${where}: ${what.toLowerCase()} expected around ${at}${amount}.`, 'rcbw-rain');
+    sent[rainKey] = Date.now();
+  }
+
+  // Keep only today's air entries and the rain timestamps.
+  const today = new Date().toDateString();
+  for (const k of Object.keys(sent)) if (k.startsWith('aqi|') && !k.endsWith(today)) delete sent[k];
+  store.set('alerted', sent);
+}
+
+$('alerts').value = store.get('alerts', 'off');
+$('alerts').onchange = async e => {
+  let on = e.target.value === 'on';
+  if (on) {
+    if (!('Notification' in window)) { $('status').textContent = 'Notifications are not available here.'; on = false; }
+    else if (Notification.permission !== 'granted' && await Notification.requestPermission() !== 'granted') {
+      $('status').textContent = 'Notifications are blocked. Allow them in your browser or system settings.'; on = false;
+    }
+  }
+  e.target.value = on ? 'on' : 'off';
+  store.set('alerts', e.target.value);
+  if (on) { notify('RCB Weather alerts are on', 'You will be told about bad air and heavy rain ahead.', 'rcbw-test'); refresh(true); }
+};
+
 let last = null;
 async function refresh(silent = false) {
   if (!state.location) { $('status').textContent = 'Search a place or use your location.'; return; }
@@ -382,6 +444,7 @@ async function refresh(silent = false) {
     last = model;
     render(last);
     renderAir(air);
+    checkAlerts(model, air);
     updatedAt = Date.now();
     $('status').textContent = `${p.name} · ${state.location.name}`;
     tick();
@@ -455,7 +518,7 @@ document.addEventListener('click', e => { if (!$('search').contains(e.target)) $
 // updates are silent (the page keeps showing data while new data loads). Clock every second.
 const REFRESH_MS = 5 * 60 * 1000;
 let updatedAt = null;
-setInterval(() => { if (!document.hidden) refresh(true); }, REFRESH_MS);
+setInterval(() => { if (!document.hidden || store.get('alerts', 'off') === 'on') refresh(true); }, REFRESH_MS);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && (!updatedAt || Date.now() - updatedAt > 60 * 1000)) refresh(true);
 });

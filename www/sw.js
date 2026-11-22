@@ -1,6 +1,6 @@
 /* Offline support: the app shell is cached; weather requests go to the network and fall back to
  * the last successful response, so the app still opens (with the last data) without internet. */
-const SHELL = 'rcbw-shell-v8';
+const SHELL = 'rcbw-shell-v9';
 const DATA = 'rcbw-data-v1';
 const FILES = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icons/app-192.png', './icons/app-512.png'];
 
@@ -25,4 +25,11 @@ self.addEventListener('fetch', e => {
       return res;
     }).catch(() => caches.match(e.request)));
   }
+});
+
+// Tapping an alert opens (or focuses) the app.
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list =>
+    list.length ? list[0].focus() : self.clients.openWindow('./')));
 });
