@@ -1,39 +1,92 @@
-# RCB Weather
+<p align="center"><img src="www/icons/app-192.png" width="96" alt="RCB Weather logo" /></p>
 
-A live weather dashboard in plain HTML, CSS and JavaScript — no build step, no dependencies.
+<h1 align="center">RCB Weather</h1>
 
-- **Providers:** MET Norway (default, no key), Open-Meteo (no key), OpenWeatherMap (your own key).
-- **Location:** your current location (browser permission) or search any city or village.
-- **Shows:** temperature, feels like, wind speed and direction, gusts, humidity, dew point,
-  pressure, chance of rain, precipitation, cloud cover, UV index, visibility, sunrise and sunset;
-  next 24 hours (with rain chance and wind) and next days (with rain, wind and UV); °C / °F.
-- **Air quality:** US AQI with level and advice, PM2.5, PM10, ozone, NO₂, SO₂, CO (Open-Meteo /
-  Copernicus CAMS, no key; shown for every provider).
-- **Live:** refreshes every 5 minutes and when you return to the tab; live clock.
-- **Icons:** the original RCB Wake weather icons (`icons/`).
+<p align="center">
+  Live weather, air quality and alerts — in the browser, on Windows, Mac and iPhone.<br />
+  <a href="https://rananjaya.github.io/RCB_Weather/"><b>Open the web app</b></a> ·
+  <a href="https://github.com/Rananjaya/RCB_Weather/releases/latest">Download for Windows and Mac</a>
+</p>
 
-## Run
+---
 
-Geolocation needs `https://` or `localhost`, so serve the folder:
+## Features
 
-```sh
-cd www && python3 -m http.server 8080
-# open http://localhost:8080
-```
+- **Three weather providers:** MET Norway (default, no key), Open-Meteo (no key) and
+  OpenWeatherMap (your own API key).
+- **Your location or any place:** use your current location, or search any city or village.
+- **Everything at a glance:** temperature, feels like, wind speed and direction, gusts,
+  humidity, dew point, pressure, chance of rain, precipitation, cloud cover, UV index, sunrise
+  and sunset; the next 24 hours and the next days; °C or °F.
+- **Air quality:** a colour gauge with the US AQI, its level and advice, plus PM2.5, PM10,
+  ozone, NO₂, SO₂, CO and the European AQI.
+- **Alerts:** a notification when the air turns bad (US AQI over 100) or heavy rain or a
+  thunderstorm is expected in the next 6 hours.
+- **Live:** updates by itself every 5 minutes, when you come back to it and when the internet
+  returns; a live clock shows how fresh the data is.
+- **Full screen** on every platform, and works offline with the last weather.
+- **Original icons:** the colourful day and night weather icons from RCB Wake.
 
-A place can also be set in the address: `?lat=6.93&lon=79.86&name=Colombo`.
-
-## Data and privacy
-
-Requests go straight from the browser to the chosen provider with rounded coordinates (about
-1 km). Place search uses Open-Meteo geocoding (GeoNames data). Settings are kept in the browser's
-local storage only. Weather data: MET Norway (CC BY 4.0), Open-Meteo (CC BY 4.0), OpenWeather.
-
-## Apps
+## Get it
 
 | Platform | How |
 | --- | --- |
-| Windows (desktop) | `dist/RCB-Weather-Windows-x64.zip` → unzip → run `RCB Weather.exe`. Opens full screen (F11 / Esc to leave). Rebuild: `npm install`, then copy `www/` into `dist/RCB Weather-win32-x64/resources/app/www`. |
-| iPhone / iPad | `npm run ios` opens the Xcode project; choose your Apple ID team under Signing & Capabilities and run on your device. Full screen, status bar hidden. |
-| macOS | `dist/RCB-Weather-macOS-arm64.zip` → unzip → open `RCB Weather.app` (Apple silicon). First launch: right-click → Open. |
-| Any device (browser / PWA) | https://rananjaya.github.io/RCB_Weather/ (GitHub Pages, deployed by `.github/workflows/pages.yml`) → "Install app" (Edge/Chrome) or Safari → Share → Add to Home Screen. Works offline with the last weather. |
+| **Browser** (any device) | Open https://rananjaya.github.io/RCB_Weather/. To install it as an app: **Install app** in Chrome or Edge, or **Share → Add to Home Screen** in Safari on iPhone. |
+| **Windows** (64-bit) | Download `RCB-Weather-Windows-x64.zip` from [Releases](https://github.com/Rananjaya/RCB_Weather/releases/latest), extract it and run `RCB Weather.exe`. If Windows warns you, choose **More info → Run anyway**. |
+| **Mac** (Apple silicon) | Download `RCB-Weather-macOS-arm64.zip` from [Releases](https://github.com/Rananjaya/RCB_Weather/releases/latest), unzip it and move **RCB Weather.app** to Applications. The first time, open **System Settings → Privacy & Security → Open Anyway**. |
+| **iPhone / iPad** | Use the web app above (Add to Home Screen). A native build is in `ios/` (Capacitor). |
+
+In the apps, **Esc** leaves full screen and **F11** goes back to it. The Windows and Mac apps load
+the live site, so they stay up to date without a new download.
+
+## Privacy
+
+There are no accounts, ads, analytics or tracking, and no RCB Weather server.
+
+- Weather requests go straight from your device to the provider you choose, with your location
+  rounded to about 1 km.
+- Place search uses Open-Meteo geocoding.
+- Your settings, including an OpenWeatherMap key, are stored only on your device. The key is sent
+  only to OpenWeatherMap.
+- Notifications are created on your device; nothing is sent to a push service.
+
+## For developers
+
+The web app is plain HTML, CSS and JavaScript in `www/`, with no build step. Location needs
+`https://` or `localhost`:
+
+```sh
+cd www && python3 -m http.server 8080   # then open http://localhost:8080
+```
+
+A place can be set in the address: `?lat=6.93&lon=79.86&name=Colombo`.
+
+| Folder | What |
+| --- | --- |
+| `www/` | The web app (also used by every app build) |
+| `electron/` | Windows and Mac app (Electron) |
+| `ios/` | iPhone and iPad app (Capacitor): `npm run ios`, then choose your team in Xcode |
+| `.github/workflows/pages.yml` | Publishes `www/` to GitHub Pages on every push to `main` |
+
+## Contributing
+
+Bug reports and ideas are welcome as [issues](https://github.com/Rananjaya/RCB_Weather/issues).
+Pull requests are welcome too; by sending one you agree to the contribution terms in
+[LICENSE](LICENSE). Everyone taking part must follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Licence
+
+**Copyright © Rananjaya. All rights reserved.**
+
+RCB Weather is **source-available, not open source**. You may read the code and use the official
+website and apps. You may **not** copy, modify, redistribute, host or sell it, or use its icons,
+name or logo, **without written permission**. See [LICENSE](LICENSE) for the full terms, and ask
+through a [GitHub issue](https://github.com/Rananjaya/RCB_Weather/issues).
+
+Third-party software and data are under their own licences: see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Weather data: [MET Norway](https://api.met.no/) (CC BY 4.0), [Open-Meteo](https://open-meteo.com/)
+(CC BY 4.0), [OpenWeather](https://openweathermap.org/). Air quality: Copernicus Atmosphere
+Monitoring Service via Open-Meteo. Place search: [GeoNames](https://www.geonames.org/) via
+Open-Meteo.

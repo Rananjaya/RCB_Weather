@@ -22,5 +22,7 @@
   },
   "allowScripts": {
     "electron@37.10.3": true
-  }
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Rananjaya"
 }

@@ -1,0 +1,48 @@
+RCB Weather — Source-Available License (All Rights Reserved)
+
+Copyright (c) 2026 Rananjaya. All rights reserved.
+
+The source code, icons, artwork, name and logo of RCB Weather (the "Software") are the property
+of the copyright holder. The source is published so that people can read it and check what the
+Software does. Publishing it does not make it open source and grants no rights except those below.
+
+1. Permitted without asking
+   a. Viewing and reading the source code on GitHub.
+   b. Using the official RCB Weather website (https://rananjaya.github.io/RCB_Weather/) and the
+      official builds from https://github.com/Rananjaya/RCB_Weather/releases, unmodified, for
+      your own personal use.
+   c. Forking on GitHub only as far as GitHub's Terms of Service require for public repositories,
+      and only to propose changes back to this repository (pull requests).
+
+2. Not permitted without the copyright holder's prior written permission
+   a. Copying the Software, or any part of it (including the icons and artwork), into another
+      project, app, website or product.
+   b. Modifying the Software, or making works based on it, other than to propose changes back to
+      this repository.
+   c. Distributing, publishing, hosting, mirroring, selling, sublicensing or renting the Software
+      or modified versions of it, including in app stores.
+   d. Any commercial use.
+   e. Using the name "RCB Weather" or its logo for another product, or in a way that suggests
+      endorsement.
+
+3. Asking for permission
+   Ask through GitHub: https://github.com/Rananjaya (open an issue on this repository). Permission
+   is valid only if given in writing by the copyright holder.
+
+4. Contributions
+   By submitting a pull request, you agree that the copyright holder may use, change and
+   distribute your contribution as part of the Software under any terms, and you confirm that
+   you have the right to submit it.
+
+5. Third-party components
+   Third-party software and data used by RCB Weather are under their own licences, listed in
+   THIRD_PARTY_NOTICES.md. Nothing in this License limits rights you have under those licences.
+
+6. No warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. WEATHER,
+   AIR-QUALITY AND ALERT INFORMATION MAY BE LATE, INCOMPLETE OR WRONG; DO NOT RELY ON IT FOR SAFETY
+   DECISIONS. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+7. Termination
+   Any use that breaks these terms ends your permission to use the Software.
