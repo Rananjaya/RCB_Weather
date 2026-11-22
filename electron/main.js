@@ -34,6 +34,7 @@ function create() {
 app.whenReady().then(() => {
   // Allow "My location" (the only permission the dashboard asks for).
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'geolocation'));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'geolocation');
   create();
 });
 app.on('window-all-closed', () => app.quit());
