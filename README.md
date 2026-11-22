@@ -37,4 +37,5 @@ local storage only. Weather data: MET Norway (CC BY 4.0), Open-Meteo (CC BY 4.0)
 | --- | --- |
 | Windows (desktop) | `dist/RCB-Weather-Windows-x64.zip` → unzip → run `RCB Weather.exe`. Opens full screen (F11 / Esc to leave). Rebuild: `npm install`, then copy `www/` into `dist/RCB Weather-win32-x64/resources/app/www`. |
 | iPhone / iPad | `npm run ios` opens the Xcode project; choose your Apple ID team under Signing & Capabilities and run on your device. Full screen, status bar hidden. |
-| Any device (PWA) | Host `www/` over HTTPS (e.g. GitHub Pages) → "Install app" (Edge/Chrome) or Safari → Share → Add to Home Screen. Works offline with the last weather. |
+| macOS | `dist/RCB-Weather-macOS-arm64.zip` → unzip → open `RCB Weather.app` (Apple silicon). First launch: right-click → Open. |
+| Any device (browser / PWA) | https://rananjaya.github.io/RCB_Weather/ (GitHub Pages, deployed by `.github/workflows/pages.yml`) → "Install app" (Edge/Chrome) or Safari → Share → Add to Home Screen. Works offline with the last weather. |
