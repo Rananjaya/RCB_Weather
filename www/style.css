@@ -97,10 +97,18 @@ body {
 .hour { flex: 0 0 78px; }
 .hour .p .arrow { font-size: .8rem; }
 .air { display: grid; grid-template-columns: 160px 1fr; gap: 16px; align-items: center; }
-.aqi { --aqi: #4ade80; display: grid; place-items: center; text-align: center; aspect-ratio: 1; border-radius: 50%;
-  border: 8px solid var(--aqi); padding: 10px; }
-.aqi span { font-size: 2.6rem; font-weight: 600; line-height: 1; }
-.aqi small { color: var(--aqi); font-weight: 600; font-size: .8rem; }
+.aqi { --aqi: #4ade80; --p: 0; position: relative; width: 160px; aspect-ratio: 1; display: grid; place-content: center;
+  text-align: center; gap: 6px; padding: 0 26px; }
+.aqi-ring { position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 225deg, #4ade80 0deg 45deg, #facc15 45deg 90deg, #fb923c 90deg 135deg,
+    #f87171 135deg 180deg, #c084fc 180deg 225deg, #be123c 225deg 270deg, transparent 270deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 11px), #000 calc(100% - 10px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 11px), #000 calc(100% - 10px)); opacity: .9; }
+.aqi-dot { position: absolute; inset: 0; transform: rotate(calc(225deg + var(--p) * 270deg)); transition: transform .6s ease; }
+.aqi-dot::before { content: ''; position: absolute; top: -4px; left: 50%; width: 18px; height: 18px; margin-left: -9px;
+  border-radius: 50%; background: #fff; border: 4px solid var(--aqi); box-shadow: 0 0 0 3px var(--surface); }
+.aqi span { position: relative; font-size: 2.6rem; font-weight: 700; line-height: 1; }
+.aqi small { position: relative; color: var(--aqi); font-weight: 600; font-size: .75rem; line-height: 1.2; }
 .note { color: var(--muted); font-size: .85rem; margin: 12px 0 0; }
 @media (max-width: 640px) { .air { grid-template-columns: 1fr; } .aqi { width: 140px; margin: auto; } }
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }

@@ -359,6 +359,10 @@ function renderAir(a) {
   $('aqiValue').textContent = Math.round(a.us_aqi);
   $('aqiLabel').textContent = label;
   $('aqiBadge').style.setProperty('--aqi', color);
+  // Marker position on the gauge: six equal bands, linear inside each band (last band 300–500).
+  const i = AQI_LEVELS.findIndex(([max]) => a.us_aqi <= max);
+  const lo = i ? AQI_LEVELS[i - 1][0] : 0, hi = i === AQI_LEVELS.length - 1 ? 500 : AQI_LEVELS[i][0];
+  $('aqiBadge').style.setProperty('--p', Math.min(1, (i + Math.min(1, (a.us_aqi - lo) / (hi - lo))) / AQI_LEVELS.length));
   const ug = v => v == null ? null : `${v.toFixed(1)} µg/m³`;
   $('airDetails').innerHTML = [
     ['PM2.5', ug(a.pm2_5)], ['PM10', ug(a.pm10)], ['Ozone (O₃)', ug(a.ozone)],
@@ -411,10 +415,10 @@ function renderImagery() {
 }
 
 let last = null;
-async function refresh() {
+async function refresh(silent = false) {
   if (!state.location) { $('status').textContent = 'Search a place or use your location.'; return; }
   const p = providers[state.provider];
-  $('status').textContent = `Loading ${p.name} for ${state.location.name}…`;
+  if (!silent) $('status').textContent = `Loading ${p.name} for ${state.location.name}…`;
   try {
     const [model, air] = await Promise.all([p.load(state.location), loadAir(state.location).catch(() => null)]);
     last = model;
@@ -490,13 +494,15 @@ $('search').onsubmit = e => { e.preventDefault(); search($('q').value); };
 $('q').oninput = e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => search(e.target.value), 350); };
 document.addEventListener('click', e => { if (!$('search').contains(e.target)) $('results').hidden = true; });
 
-// Live updates: weather every 10 minutes and whenever the tab comes back; clock every second.
-const REFRESH_MS = 10 * 60 * 1000;
+// Live updates: weather every 5 minutes, when the tab comes back and when the internet returns;
+// updates are silent (the page keeps showing data while new data loads). Clock every second.
+const REFRESH_MS = 5 * 60 * 1000;
 let updatedAt = null;
-setInterval(refresh, REFRESH_MS);
+setInterval(() => { if (!document.hidden) refresh(true); }, REFRESH_MS);
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && (!updatedAt || Date.now() - updatedAt > 60 * 1000)) refresh();
+  if (!document.hidden && (!updatedAt || Date.now() - updatedAt > 60 * 1000)) refresh(true);
 });
+window.addEventListener('online', () => refresh(true));
 setInterval(tick, 1000);
 function tick() {
   $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
