@@ -570,11 +570,27 @@ function setLocation(loc) {
 
 // ---------------------------------------------------------------- location: current + search
 
+// Place name for a position (reverse geocoding, BigDataCloud's free client service; coordinates
+// rounded to about 1 km). Returns null when it cannot be found, and the app shows "My location".
+async function placeName(lat, lon) {
+  try {
+    const d = await getJson(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${round2(lat)}&longitude=${round2(lon)}&localityLanguage=${(navigator.language || 'en').split('-')[0]}`);
+    const town = d.locality || d.city || d.localityInfo?.administrative?.slice(-1)[0]?.name;
+    return town ? (d.city && d.city !== town ? `${town}, ${d.city}` : town) : (d.principalSubdivision || null);
+  } catch { return null; }
+}
+
 function locate() {
   if (!navigator.geolocation) { $('status').textContent = 'Location is not available in this browser.'; return; }
   $('status').textContent = 'Finding your location…';
   navigator.geolocation.getCurrentPosition(
-    p => setLocation({ name: 'My location', lat: p.coords.latitude, lon: p.coords.longitude, mine: true }),
+    async p => {
+      const lat = p.coords.latitude, lon = p.coords.longitude, prev = state.location;
+      // Same place as last time (within ~1 km): keep its name; otherwise look the name up.
+      const same = prev?.mine && prev.name !== 'My location' && round2(prev.lat) === round2(lat) && round2(prev.lon) === round2(lon);
+      const name = same ? prev.name : await placeName(lat, lon);
+      setLocation({ name: name || 'My location', lat, lon, mine: true });
+    },
     e => { $('status').textContent = `Could not get your location (${e.message}). Search for a place instead.`; },
     { enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 },
   );
