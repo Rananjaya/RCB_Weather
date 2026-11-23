@@ -51,8 +51,9 @@ There are no accounts, ads, analytics or tracking.
   only to OpenWeatherMap.
 - **Alerts (only if you turn them on):** to send alerts when the app is closed, the RCB Weather
   alerts server (a Cloudflare Worker, `push-worker/`) stores your browser's push address, your
-  place rounded to about 1 km, its name and your time zone. It checks that place's forecast every
-  15 minutes. Push messages are empty; your device fetches the alert text from the server. The
+  place rounded to about 1 km, its name, your time zone and the weather provider you chose — and,
+  only if that provider is OpenWeatherMap, your API key, encrypted. It checks that place's forecast
+  with your provider every 15 minutes (air quality always from Open-Meteo). Push messages are empty; your device fetches the alert text from the server. The
   data is deleted when you turn Alerts off or the push address stops working, and is never shared
   or used for anything else.
 

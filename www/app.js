@@ -437,7 +437,8 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeou
 async function pushSync(force = false, welcome = false) {
   const loc = state.location;
   if (!loc || IS_DESKTOP_APP || !('serviceWorker' in navigator) || !('PushManager' in window)) { store.set('push', false); return false; }
-  const sig = `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)},${loc.name}`;
+  const owmKey = state.provider === 'owm' ? state.owmKey : '';
+  const sig = `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)},${loc.name},${state.provider},${owmKey.slice(-6)}`;
   const lastSync = store.get('pushSync', {});
   try {
     const reg = await withTimeout(navigator.serviceWorker.ready, 10000);
@@ -445,7 +446,7 @@ async function pushSync(force = false, welcome = false) {
     if (!sub) sub = await withTimeout(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) }), 15000);
     if (force || lastSync.sig !== sig || lastSync.endpoint !== sub.endpoint || Date.now() - (lastSync.at || 0) > 864e5) {
       const r = await fetch(`${PUSH_API}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ welcome, subscription: sub.toJSON(), lat: loc.lat, lon: loc.lon, name: loc.name, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
+        body: JSON.stringify({ welcome, provider: state.provider, owmKey: owmKey || undefined, subscription: sub.toJSON(), lat: loc.lat, lon: loc.lon, name: loc.name, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       store.set('pushSync', { sig, endpoint: sub.endpoint, at: Date.now() });
     }
@@ -561,9 +562,9 @@ function syncControls() {
   $('keyWrap').hidden = state.provider !== 'owm';
 }
 
-$('provider').onchange = e => { state.provider = e.target.value; store.set('provider', state.provider); syncControls(); refresh(); };
+$('provider').onchange = e => { state.provider = e.target.value; store.set('provider', state.provider); syncControls(); refresh(); if (store.get('alerts', 'off') === 'on') pushSync(); };
 $('units').onchange = e => { state.units = e.target.value; store.set('units', state.units); if (last) render(last); };
-$('owmKey').onchange = e => { state.owmKey = e.target.value.trim(); store.set('owmKey', state.owmKey); refresh(); };
+$('owmKey').onchange = e => { state.owmKey = e.target.value.trim(); store.set('owmKey', state.owmKey); refresh(); if (store.get('alerts', 'off') === 'on') pushSync(); };
 $('locate').onclick = locate;
 $('search').onsubmit = e => { e.preventDefault(); search($('q').value); };
 $('q').oninput = e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => search(e.target.value), 350); };
