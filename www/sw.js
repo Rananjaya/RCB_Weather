@@ -1,8 +1,8 @@
 /* Offline support: the app shell is cached; weather requests go to the network and fall back to
  * the last successful response, so the app still opens (with the last data) without internet. */
-const SHELL = 'rcbw-shell-v16';
+const SHELL = 'rcbw-shell-v17';
 const DATA = 'rcbw-data-v1';
-const FILES = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icons/app-192.png', './icons/app-512.png'];
+const FILES = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icons/app-192.png', './icons/app-512.png', './images/hero.jpg'];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(
