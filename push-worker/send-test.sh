@@ -25,4 +25,4 @@ try: r = urllib.request.urlopen(req); print(line, "→ test sent")
 except Exception as e: print(line, "→", getattr(e, "read", lambda: str(e).encode())().decode())
 ' "$K"
 done
-[ "$FILTER" = "--list" ] || echo "Done. A device that got the test fetches it within seconds; check with: ./send-test.sh --list"
+[ "$FILTER" = "--list" ] || echo "Done. The test shows on each device within a few seconds. Expired devices (410) are removed automatically."
