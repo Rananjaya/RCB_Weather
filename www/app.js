@@ -489,32 +489,6 @@ $('alerts').onchange = async e => {
 // Keep the server's copy of this device's place up to date.
 if (store.get('alerts', 'off') === 'on') setTimeout(() => pushSync(), 3000);
 
-// "Send test alert": a real push from the alerts server ~10 s later (close the app to check that
-// alerts arrive while it is closed). Without push (desktop apps) the app shows the test itself.
-const syncTestButton = () => { $('testWrap').hidden = store.get('alerts', 'off') !== 'on'; };
-syncTestButton();
-$('alerts').addEventListener('change', () => setTimeout(syncTestButton, 0));
-$('testAlert').onclick = async () => {
-  const say = t => { $('status').textContent = t; };
-  if (!('Notification' in window) || Notification.permission !== 'granted') { say('Notifications are blocked. Allow them in your browser or system settings, then try again.'); return; }
-  $('testAlert').disabled = true;
-  try {
-    if (!await pushSync(true)) {
-      notify('RCB Weather test alert', 'Alerts work in this app. They come while RCB Weather is running.', 'rcbw-test');
-      say('Test shown. This app gets alerts while it is running (no push here).');
-      return;
-    }
-    const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
-    const r = await fetch(`${PUSH_API}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint, delay: 10 }) });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    say(`Test alert on its way from the alerts server (${d.provider}, ${d.name}). It arrives in about ${d.delay} seconds — you can close the app now.`);
-  } catch (e) {
-    say(`Could not send the test: ${e.message}`);
-  } finally {
-    setTimeout(() => { $('testAlert').disabled = false; }, 30000);
-  }
-};
 
 let last = null;
 async function refresh(silent = false) {
