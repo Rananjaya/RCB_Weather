@@ -16,82 +16,135 @@
 </head>
 <body>
   <header class="top">
-    <h1 class="brand"><img src="icons/partly_day.svg" alt="" /> RCB Weather</h1>
-    <form id="search" class="search" autocomplete="off">
+    <div class="brand">
+      <img src="icons/partly_day.svg" alt="" />
+      <div><h1>RCB Weather</h1><small>Weather • Air Quality • Alerts</small></div>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#hero" class="active"><i data-i="home"></i>Dashboard</a>
+      <a href="#dailyCard"><i data-i="calendar"></i>Forecast</a>
+      <a href="#airCard"><i data-i="wind"></i>Air Quality</a>
+      <a href="#alertsCard"><i data-i="bell"></i>Alerts</a>
+    </nav>
+    <div class="actions">
+      <button id="searchBtn" class="round" type="button" title="Search a place" aria-label="Search a place"><i data-i="search"></i></button>
+      <button id="settingsBtn" class="round" type="button" title="Settings" aria-label="Settings"><i data-i="gear"></i></button>
+      <button id="locate" class="pill" type="button" title="Use my current location"><i data-i="pin"></i>My location</button>
+    </div>
+    <form id="search" class="search" autocomplete="off" hidden>
       <input id="q" type="search" placeholder="Search a city or village…" aria-label="Search location" />
       <ul id="results" class="results" hidden></ul>
     </form>
-    <button id="locate" class="btn" type="button" title="Use my current location">📍 My location</button>
   </header>
 
-  <section class="controls">
-    <label>Provider
-      <select id="provider">
-        <option value="metno">MET Norway</option>
-        <option value="openmeteo">Open-Meteo</option>
-        <option value="owm">OpenWeatherMap</option>
-      </select>
-    </label>
-    <label id="keyWrap" hidden>API key
-      <input id="owmKey" type="password" placeholder="Your OpenWeatherMap key" />
-    </label>
-    <label>Units
-      <select id="units">
-        <option value="c">°C</option>
-        <option value="f">°F</option>
-      </select>
-    </label>
-    <label>Alerts
-      <select id="alerts">
-        <option value="off">Off</option>
-        <option value="on">Bad air &amp; heavy rain</option>
-      </select>
-    </label>
-  </section>
+  <section id="hero" class="hero day">
+    <svg class="scene" viewBox="0 0 1600 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop class="s1" offset="0" /><stop class="s2" offset=".55" /><stop class="s3" offset="1" />
+        </linearGradient>
+        <radialGradient id="glow"><stop offset="0" stop-color="#fff6c8" /><stop offset=".25" stop-color="#ffb347" stop-opacity=".8" /><stop offset="1" stop-color="#ff7a59" stop-opacity="0" /></radialGradient>
+      </defs>
+      <rect width="1600" height="520" fill="url(#sky)" />
+      <g class="stars" fill="#fff">
+        <circle cx="120" cy="60" r="1.4"/><circle cx="300" cy="120" r="1"/><circle cx="520" cy="40" r="1.6"/><circle cx="760" cy="90" r="1"/><circle cx="980" cy="50" r="1.3"/><circle cx="1180" cy="110" r="1"/><circle cx="1380" cy="70" r="1.5"/><circle cx="1520" cy="140" r="1"/><circle cx="660" cy="160" r="1"/><circle cx="1080" cy="170" r="1.2"/>
+      </g>
+      <circle class="sun" cx="1040" cy="300" r="150" fill="url(#glow)" />
+      <circle class="sun core" cx="1040" cy="300" r="16" fill="#fff8dc" />
+      <path class="m1" d="M0 300 L160 220 L300 270 L470 170 L640 260 L820 190 L980 250 L1150 160 L1330 240 L1480 200 L1600 240 V520 H0Z" />
+      <path class="m2" d="M0 360 L200 280 L380 340 L560 270 L760 350 L940 290 L1120 350 L1300 280 L1460 330 L1600 300 V520 H0Z" />
+      <path class="m3" d="M0 420 L180 360 L360 410 L560 350 L760 420 L960 370 L1160 430 L1360 370 L1600 410 V520 H0Z" />
+      <path class="m4" d="M0 470 Q200 430 420 465 T860 460 T1300 470 T1600 455 V520 H0Z" />
+    </svg>
 
-  <main>
-    <div class="live">
-      <span id="clock" class="clock"></span>
-      <span class="dot" aria-hidden="true"></span>
-      <span id="updated"></span>
-      <span id="status" class="status" role="status"></span>
+    <div class="controls">
+      <label>Provider
+        <select id="provider">
+          <option value="metno">MET Norway</option>
+          <option value="openmeteo">Open-Meteo</option>
+          <option value="owm">OpenWeatherMap</option>
+        </select>
+      </label>
+      <label id="keyWrap" hidden>API key
+        <input id="owmKey" type="password" placeholder="Your OpenWeatherMap key" />
+      </label>
+      <label>Units
+        <select id="units">
+          <option value="c">°C</option>
+          <option value="f">°F</option>
+        </select>
+      </label>
+      <label>Alerts
+        <select id="alerts">
+          <option value="off">Off</option>
+          <option value="on">Bad air &amp; heavy rain</option>
+        </select>
+      </label>
     </div>
 
-    <section id="now" class="card now" hidden>
+    <div id="now" class="now" hidden>
       <div class="now-main">
-        <img id="nowIcon" class="now-icon" alt="" />
-        <div>
-          <div id="place" class="place"></div>
-          <div id="nowTemp" class="now-temp"></div>
-          <div id="nowCond" class="now-cond"></div>
+        <div class="place"><i data-i="pin"></i><span id="place"></span></div>
+        <div class="now-row">
+          <img id="nowIcon" class="now-icon" alt="" />
+          <div><div id="nowTemp" class="now-temp"></div><div id="nowCond" class="now-cond"></div></div>
+        </div>
+        <div class="updated"><span id="updated"></span> • <span id="status"></span></div>
+      </div>
+      <div class="now-side">
+        <div class="glass clockbox"><i data-i="clock"></i><div><b id="clock"></b><small id="today"></small></div></div>
+        <div class="glass sunbox">
+          <i data-i="sunrise"></i><div><small>Sunrise</small><b id="sunrise"></b></div>
+          <i data-i="sunset"></i><div><small>Sunset</small><b id="sunset"></b></div>
         </div>
       </div>
-      <dl id="nowDetails" class="details"></dl>
-    </section>
+      <dl id="nowDetails" class="tiles"></dl>
+    </div>
+  </section>
 
-    <section id="airCard" class="card" hidden>
-      <h2>Air quality</h2>
+  <main class="grid">
+    <section id="airCard" class="card air-card" hidden>
+      <h2><i data-i="leaf" class="green"></i>Air Quality <small>US AQI (Open-Meteo)</small></h2>
       <div class="air">
         <div id="aqiBadge" class="aqi"><i class="aqi-ring"></i><i class="aqi-dot"></i><span id="aqiValue"></span><small id="aqiLabel"></small></div>
-        <dl id="airDetails" class="details"></dl>
+        <div class="air-right">
+          <p class="advice"><i data-i="lungs" class="green"></i><span id="airNote"></span></p>
+          <dl id="airDetails" class="chips"></dl>
+        </div>
       </div>
-      <p id="airNote" class="note"></p>
     </section>
 
-    <section id="hourlyCard" class="card" hidden>
-      <h2>Next 24 hours</h2>
+    <section id="hourlyCard" class="card hourly-card" hidden>
+      <h2><i data-i="clock" class="violet"></i>Next 24 hours
+        <span class="seg" role="tablist"><button type="button" data-mode="hourly" class="on">Hourly</button><button type="button" data-mode="details">Details</button></span>
+      </h2>
       <div id="hourly" class="hourly"></div>
+      <div class="scrollbar"><span id="hourlyBar"></span></div>
     </section>
 
-    <section id="dailyCard" class="card" hidden>
-      <h2>Next days</h2>
+    <section id="alertsCard" class="card alerts-card" hidden>
+      <h2><i data-i="bell" class="amber"></i>Alerts <a href="#" id="alertsGo" class="chev" title="Alert settings">›</a></h2>
+      <div id="alertList" class="alert-list"></div>
+    </section>
+
+    <section id="dailyCard" class="card daily-card" hidden>
+      <h2><i data-i="calendar" class="violet"></i><span id="daysTitle">Next days</span></h2>
       <div id="daily" class="daily"></div>
+    </section>
+
+    <section id="rainCard" class="card rain-card" hidden>
+      <h2><i data-i="drop" class="blue"></i>Rainfall (next 24 hours) <small id="rainTotal" class="total"></small></h2>
+      <div id="rainChart" class="rain-chart"></div>
     </section>
   </main>
 
   <footer class="foot">
-    <span class="get">Get the app: <a href="https://github.com/Rananjaya/RCB_Weather/releases/latest/download/RCB-Weather-Windows-x64.zip">Windows</a> · <a href="https://github.com/Rananjaya/RCB_Weather/releases/latest/download/RCB-Weather-macOS-arm64.zip">Mac</a> · <a href="https://github.com/Rananjaya/RCB_Weather/releases/latest">All downloads</a></span>
-    <span id="attribution"></span>
+    <span class="get">Get the app
+      <a href="https://github.com/Rananjaya/RCB_Weather/releases/latest/download/RCB-Weather-Windows-x64.zip" title="Windows"><i data-i="windows"></i></a>
+      <a href="https://github.com/Rananjaya/RCB_Weather/releases/latest/download/RCB-Weather-macOS-arm64.zip" title="Mac"><i data-i="apple"></i></a>
+      <a href="https://github.com/Rananjaya/RCB_Weather#get-it" title="Phone: install from the browser"><i data-i="phone"></i></a>
+    </span>
+    <span><span id="attribution"></span> | Air quality from Open-Meteo / Copernicus CAMS (CC BY 4.0)</span>
     <span>Icons: RCB Wake original artwork.</span>
   </footer>
 

@@ -208,7 +208,7 @@ const providers = {
       const q = new URLSearchParams({
         latitude: round2(lat), longitude: round2(lon), timezone: 'auto', forecast_days: 8,
         current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,precipitation,cloud_cover',
-        hourly: 'temperature_2m,weather_code,is_day,precipitation_probability,wind_speed_10m,wind_direction_10m,uv_index,visibility,dew_point_2m',
+        hourly: 'temperature_2m,weather_code,is_day,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m,uv_index,visibility,dew_point_2m',
         daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset',
       });
       const d = await getJson(`https://api.open-meteo.com/v1/forecast?${q}`);
@@ -227,7 +227,7 @@ const providers = {
         },
         hourly: d.hourly.time.slice(start, start + 24).map((t, i) => ({
           time: local(t), temp: d.hourly.temperature_2m[start + i], cond: wmoCondition(d.hourly.weather_code[start + i]),
-          isDay: d.hourly.is_day[start + i] === 1, chance: d.hourly.precipitation_probability[start + i],
+          isDay: d.hourly.is_day[start + i] === 1, chance: d.hourly.precipitation_probability[start + i], precip: d.hourly.precipitation[start + i],
           wind: d.hourly.wind_speed_10m[start + i], windDir: d.hourly.wind_direction_10m[start + i],
         })),
         daily: d.daily.time.map((t, i) => ({
@@ -287,7 +287,7 @@ const uvLabel = uv => uv < 3 ? 'Low' : uv < 6 ? 'Moderate' : uv < 8 ? 'High' : u
 
 function render(model) {
   const { current: c, hourly, daily } = model;
-  $('now').hidden = $('hourlyCard').hidden = $('dailyCard').hidden = false;
+  $('now').hidden = $('hourlyCard').hidden = $('dailyCard').hidden = $('rainCard').hidden = false;
   $('place').textContent = state.location.name;
   $('nowIcon').src = icon(c.cond, c.isDay);
   $('nowIcon').alt = LABEL[c.cond];
@@ -297,43 +297,95 @@ function render(model) {
   const feels = c.feels ?? apparent(c.temp, c.humidity, c.wind);
   const dew = c.dew ?? dewPoint(c.temp, c.humidity);
   const sun = c.sunrise ? { rise: c.sunrise, set: c.sunset } : sunTimes(new Date(), state.location.lat, state.location.lon);
-  const arrow = deg => deg != null ? `<span class="arrow" style="transform:rotate(${deg + 180}deg)" title="${Math.round(deg)}°">↑</span>` : '';
-  const details = [
-    ['Feels like', feels != null ? temp(feels) : null],
-    ['Wind', c.wind != null ? `${arrow(c.windDir)} ${Math.round(c.wind)} km/h${c.windDir != null ? ` ${compass(c.windDir)}` : ''}` : null],
-    ['Gusts', c.gust != null ? `${Math.round(c.gust)} km/h` : null],
-    ['Humidity', c.humidity != null ? `${Math.round(c.humidity)}%` : null],
-    ['Dew point', dew != null ? temp(dew) : null],
-    ['Pressure', c.pressure != null ? `${Math.round(c.pressure)} hPa` : null],
-    ['Chance of rain', c.chance != null ? `${Math.round(c.chance)}%` : null],
-    ['Precipitation', c.precip != null ? `${c.precip.toFixed(1)} mm` : null],
-    ['Cloud cover', c.clouds != null ? `${Math.round(c.clouds)}%` : null],
-    ['UV index', c.uv != null ? `${c.uv.toFixed(1)} ${uvLabel(c.uv)}` : null],
-    ['Visibility', c.visibility != null ? `${c.visibility >= 10 ? Math.round(c.visibility) : c.visibility.toFixed(1)} km` : null],
-    ['Fog', c.fog != null && c.fog > 0 ? `${Math.round(c.fog)}%` : null],
-    ['Sunrise', sun ? clock(sun.rise) : null],
-    ['Sunset', sun ? clock(sun.set) : null],
-  ].filter(([, v]) => v);
-  $('nowDetails').innerHTML = details.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  $('sunrise').textContent = sun ? clock(sun.rise) : '–';
+  $('sunset').textContent = sun ? clock(sun.set) : '–';
+  // Scenery: dusk within an hour of sunrise/sunset, otherwise day or night.
+  const t = Date.now(), near = d => d && Math.abs(t - d.getTime()) < 3600e3;
+  $('hero').className = `hero ${sun && (near(sun.rise) || near(sun.set)) ? 'dusk' : c.isDay ? 'day' : 'night'}`;
 
-  $('hourly').innerHTML = hourly.map(h => `
-    <div class="hour">
-      <div class="h">${hourLabel(h.time)}</div>
+  const arrow = deg => deg != null ? `<span class="arrow" style="transform:rotate(${deg + 180}deg)" title="${Math.round(deg)}°">↑</span>` : '';
+  const tiles = [
+    ['thermo', 'Feels like', feels != null ? temp(feels) : null],
+    ['wind', 'Wind', c.wind != null ? `${Math.round(c.wind)} km/h<small>${c.windDir != null ? `${arrow(c.windDir)} ${compass(c.windDir)}` : ''}${c.gust != null ? ` · gusts ${Math.round(c.gust)}` : ''}</small>` : null],
+    ['drop', 'Humidity', c.humidity != null ? `${Math.round(c.humidity)}%` : null],
+    ['gauge', 'Pressure', c.pressure != null ? `${Math.round(c.pressure)} hPa` : null],
+    ['rain', 'Precipitation', c.precip != null ? `${c.precip.toFixed(1)} mm${c.chance != null ? `<small>${Math.round(c.chance)}% chance</small>` : ''}` : null],
+    ['cloud', 'Cloud cover', c.clouds != null ? `${Math.round(c.clouds)}%` : null],
+    ['sun', 'UV index', c.uv != null ? `${c.uv.toFixed(1)}<small>${uvLabel(c.uv)}</small>` : null],
+    ['leaf', 'Dew point', dew != null ? temp(dew) : null],
+    ['eye', 'Visibility', c.visibility != null ? `${c.visibility >= 10 ? Math.round(c.visibility) : c.visibility.toFixed(1)} km` : null],
+  ].filter(([, , v]) => v);
+  $('nowDetails').innerHTML = tiles.map(([ic, k, v]) => `<div><i data-i="${ic}"></i><span><dt>${k}</dt><dd>${v}</dd></span></div>`).join('');
+
+  $('hourly').innerHTML = hourly.map((h, i) => {
+    const wet = (h.chance ?? 0) >= 30 || (h.precip ?? 0) > 0.2;
+    const rainTxt = h.chance != null ? `${Math.round(h.chance)}%` : `${(h.precip ?? 0).toFixed(1)} mm`;
+    return `<div class="hour${i === 0 ? ' cur' : ''}">
+      <div class="h">${i === 0 ? 'Now' : clock(h.time)}</div>
       <img src="${icon(h.cond, h.isDay)}" alt="${LABEL[h.cond]}" title="${LABEL[h.cond]}" />
       <div class="t">${temp(h.temp)}</div>
-      <div class="p">💧 ${h.chance != null ? `${Math.round(h.chance)}%` : h.precip ? `${h.precip.toFixed(1)}` : '0'}</div>
-      <div class="p">${h.wind != null ? `${arrow(h.windDir)} ${Math.round(h.wind)}` : ''}</div>
+      <div class="p rain${wet ? ' wet' : ''}">💧 ${rainTxt}</div>
+      <div class="p wind" hidden>${h.wind != null ? `${arrow(h.windDir)} ${Math.round(h.wind)} km/h` : '–'}</div>
+    </div>`;
+  }).join('');
+  setHourlyMode(hourlyMode);
+
+  const days = daily.slice(0, 8);
+  $('daysTitle').textContent = `Next ${days.length} days`;
+  $('daily').innerHTML = days.map((d, i) => `
+    <div class="dcard${i === 0 ? ' today' : ''}" title="${[d.chance != null ? `Rain chance ${Math.round(d.chance)}%` : '', d.precip ? `${d.precip.toFixed(1)} mm` : '', d.windMax != null ? `Wind up to ${Math.round(d.windMax)} km/h` : '', d.uvMax ? `UV ${Math.round(d.uvMax)}` : ''].filter(Boolean).join(' · ')}">
+      <b>${i === 0 ? 'Today' : d.date.toLocaleDateString([], { weekday: 'short' })}</b>
+      <small>${d.date.toLocaleDateString([], { weekday: i === 0 ? 'short' : undefined, day: 'numeric', month: 'short' })}</small>
+      <img src="${icon(d.cond, true)}" alt="" />
+      <div class="temps">${temp(d.max)}<span>${temp(d.min)}</span></div>
+      <div class="c">${LABEL[d.cond]}</div>
     </div>`).join('');
 
-  $('daily').innerHTML = daily.map((d, i) => `
-    <div class="day">
-      <div>${dayLabel(d.date, i)}</div>
-      <img src="${icon(d.cond, true)}" alt="" />
-      <div class="c">${LABEL[d.cond]}${d.chance != null ? ` · 💧 ${Math.round(d.chance)}%` : ''}${d.precip ? ` · ${d.precip.toFixed(1)} mm` : ''}${d.windMax != null ? ` · 💨 ${Math.round(d.windMax)} km/h` : ''}${d.uvMax ? ` · UV ${Math.round(d.uvMax)}` : ''}</div>
-      <div class="lo">${temp(d.min)}</div>
-      <div class="hi">${temp(d.max)}</div>
-    </div>`).join('');
-  $('attribution').textContent = providers[state.provider].attribution;
+  renderRain(hourly);
+  $('attribution').textContent = providers[state.provider].attribution.replace(/\.$/, '');
+  fillIcons();
+}
+
+// Rainfall bars for the next 24 hours (3-hour steps for OpenWeatherMap).
+function renderRain(hourly) {
+  const pts = hourly.filter(h => h.precip != null);
+  const total = pts.reduce((a, h) => a + h.precip, 0);
+  $('rainTotal').textContent = `Total: ${total.toFixed(1)} mm`;
+  if (!pts.length) { $('rainChart').innerHTML = '<p class="rain-empty">No rainfall amounts from this provider.</p>'; return; }
+  const top = Math.max(1, Math.ceil(Math.max(...pts.map(h => h.precip))));
+  const rows = Math.min(top, 6), step = top / rows;
+  const every = Math.ceil(pts.length / 6);
+  $('rainChart').innerHTML = `
+    <div class="rain-y">${Array.from({ length: rows + 1 }, (_, i) => `<span>${+(i * step).toFixed(1)}${i === rows ? ' mm' : ''}</span>`).join('')}</div>
+    <div class="rain-plot" style="--rows:${rows}">${pts.map(h => `<div style="height:${(h.precip / top) * 100}%" title="${clock(h.time)}: ${h.precip.toFixed(1)} mm"></div>`).join('')}</div>
+    <div class="rain-x">${pts.filter((_, i) => i % every === 0).map(h => `<span>${clock(h.time)}</span>`).join('')}</div>`;
+}
+
+// Alerts card: what the alerts watch right now (same rules as the notifications).
+function renderAlertsCard(model, air) {
+  const items = [];
+  if (air && air.us_aqi != null) {
+    const [, label, , note] = AQI_LEVELS.find(([max]) => air.us_aqi <= max);
+    const cls = air.us_aqi <= 50 ? 'ok' : air.us_aqi <= 100 ? 'warn' : 'bad';
+    items.push([cls, 'wind', `${label} air quality`, `US AQI ${Math.round(air.us_aqi)} • ${note}`]);
+  }
+  const soon = Date.now() + 6 * 3600e3;
+  const hours = model.hourly.filter(h => h.time.getTime() <= soon);
+  const rough = hours.filter(h => ROUGH.has(h.cond) || (h.precip ?? 0) >= 5);
+  if (rough.length) {
+    const what = rough.some(h => h.cond === 'THUNDERSTORM') ? 'Thunderstorm ahead' : 'Heavy rain ahead';
+    const from = rough[0].time, to = new Date(rough[rough.length - 1].time.getTime() + 3600e3);
+    items.push(['rain', 'rain', what, `Likely within 6 hours (≈ ${clock(from)} – ${clock(to)})`]);
+  } else {
+    const wet = hours.find(h => (h.chance ?? 0) >= 50 || (h.precip ?? 0) >= 0.5);
+    items.push(wet ? ['rain', 'rain', 'Rain likely', `From about ${clock(wet.time)} • no heavy rain expected`]
+                   : ['ok', 'sun', 'No heavy rain expected', 'Next 6 hours look calm']);
+  }
+  const on = store.get('alerts', 'off') === 'on';
+  $('alertList').innerHTML = items.map(([cls, ic, t, sub]) => `<div class="alert-item ${cls}"><i data-i="${ic}"></i><div><b>${t}</b><small>${sub}</small></div></div>`).join('')
+    + `<p class="alert-hint">${on ? 'Notifications are on for bad air and heavy rain.' : 'Turn on Alerts to get a notification.'}</p>`;
+  $('alertsCard').hidden = false;
+  fillIcons();
 }
 
 // ---------------------------------------------------------------- air quality (all providers)
@@ -367,13 +419,12 @@ function renderAir(a) {
   const i = AQI_LEVELS.findIndex(([max]) => a.us_aqi <= max);
   const lo = i ? AQI_LEVELS[i - 1][0] : 0, hi = i === AQI_LEVELS.length - 1 ? 500 : AQI_LEVELS[i][0];
   $('aqiBadge').style.setProperty('--p', Math.min(1, (i + Math.min(1, (a.us_aqi - lo) / (hi - lo))) / AQI_LEVELS.length));
-  const ug = v => v == null ? null : `${v.toFixed(1)} µg/m³`;
-  $('airDetails').innerHTML = [
-    ['PM2.5', ug(a.pm2_5)], ['PM10', ug(a.pm10)], ['Ozone (O₃)', ug(a.ozone)],
-    ['Nitrogen dioxide (NO₂)', ug(a.nitrogen_dioxide)], ['Sulphur dioxide (SO₂)', ug(a.sulphur_dioxide)],
-    ['Carbon monoxide (CO)', ug(a.carbon_monoxide)], ['European AQI', a.european_aqi != null ? Math.round(a.european_aqi) : null],
-  ].filter(([, v]) => v != null).map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
-  $('airNote').textContent = `${note} US AQI. Air quality data: Open-Meteo.com / Copernicus CAMS (CC BY 4.0).`;
+  // Dot colour per pollutant: green / orange / red against common guideline levels (µg/m³).
+  const chip = (k, v, ok, bad) => v == null ? '' : `<div style="--c:${v <= ok ? '#4ade80' : v <= bad ? '#fb923c' : '#f87171'}"><dt>${k}</dt><dd>${v.toFixed(1)} µg/m³</dd></div>`;
+  $('airDetails').innerHTML = chip('PM2.5', a.pm2_5, 15, 35) + chip('PM10', a.pm10, 45, 100) + chip('O₃', a.ozone, 100, 160)
+    + chip('NO₂', a.nitrogen_dioxide, 25, 100) + chip('SO₂', a.sulphur_dioxide, 40, 125) + chip('CO', a.carbon_monoxide, 4000, 10000);
+  $('airNote').textContent = note;
+  fillIcons();
 }
 
 // ---------------------------------------------------------------- alerts (notifications)
@@ -500,9 +551,10 @@ async function refresh(silent = false) {
     last = model;
     render(last);
     renderAir(air);
+    renderAlertsCard(model, air);
     checkAlerts(model, air);
     updatedAt = Date.now();
-    $('status').textContent = `${p.name} · ${state.location.name}`;
+    $('status').textContent = p.name;
     tick();
   } catch (e) {
     $('status').textContent = `Could not load weather from ${p.name}: ${e.message}`;
@@ -582,7 +634,9 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('online', () => refresh(true));
 setInterval(tick, 1000);
 function tick() {
-  $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const n = new Date();
+  $('clock').textContent = n.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  $('today').textContent = n.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   if (updatedAt) {
     const m = Math.floor((Date.now() - updatedAt) / 60000);
     $('updated').textContent = m < 1 ? 'Updated just now' : `Updated ${m} min ago`;
@@ -598,3 +652,66 @@ if (params.has('lat') && params.has('lon')) {
 } else if (state.location?.mine) locate(); // keep "My location" current
 else if (state.location) refresh();
 else locate();                              // first visit: try current location
+
+// ---------------------------------------------------------------- interface icons (line icons, drawn for RCB Weather)
+const UI = {
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  wind: '<path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  pin: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  sunrise: '<path d="M4 18h16M7 14a5 5 0 0 1 10 0M12 3v4M9 6l3-3 3 3M4.5 10.5l1.5 1M19.5 10.5l-1.5 1"/>',
+  sunset: '<path d="M4 18h16M7 14a5 5 0 0 1 10 0M12 3v4M9 4l3 3 3-3M4.5 10.5l1.5 1M19.5 10.5l-1.5 1"/>',
+  thermo: '<path d="M10 4a2 2 0 0 1 4 0v10a4 4 0 1 1-4 0z"/><path d="M12 9v8"/>',
+  drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  gauge: '<path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1"/>',
+  rain: '<path d="M7 14a5 5 0 1 1 9.6-2H17a3.5 3.5 0 0 1 0 7H8"/><path d="M8 20l-1 2M12 20l-1 2M16 20l-1 2"/>',
+  cloud: '<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19.5 11 3.5 3.5 0 0 1 18 18z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  leaf: '<path d="M5 19c0-8 5-14 15-15-1 10-7 15-15 15z"/><path d="M5 19l7-7"/>',
+  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  lungs: '<path d="M12 4v8M12 12c-1 0-2-1-3-1-3 0-5 4-5 7 0 2 2 2 4 1s3-3 4-5M12 12c1 0 2-1 3-1 3 0 5 4 5 7 0 2-2 2-4 1s-3-3-4-5"/>',
+  windows: '<path d="M3 5l8-1v7H3zM13 4l8-1v8h-8zM3 13h8v7l-8-1zM13 13h8v8l-8-1z" fill="currentColor" stroke="none"/>',
+  apple: '<path d="M16 3c0 2-1.5 3.5-3 3.5 0-2 1.5-3.5 3-3.5zM12 7.5c1 0 2-1 3.5-1 2 0 3.5 1.5 3.5 1.5-2 1.2-2 4.5.5 5.5-.8 2.5-2.5 5.5-4 5.5-1.2 0-1.8-.8-3.5-.8s-2.3.8-3.5.8C7 19 4 15 4 11.5 4 8.5 6 6.5 8.3 6.5c1.5 0 2.7 1 3.7 1z" fill="currentColor" stroke="none"/>',
+  phone: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
+};
+function fillIcons() {
+  document.querySelectorAll('i[data-i]:not([data-done])').forEach(el => {
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${UI[el.dataset.i] || ''}</svg>`;
+    el.dataset.done = '1';
+  });
+}
+fillIcons();
+
+// Search and settings buttons, section tabs, hourly/details switch.
+$('searchBtn').onclick = () => {
+  const f = $('search'); f.hidden = !f.hidden; $('searchBtn').classList.toggle('on', !f.hidden);
+  if (!f.hidden) $('q').focus();
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('search').hidden) $('searchBtn').click(); });
+$('search').addEventListener('submit', e => e.preventDefault());
+document.addEventListener('click', e => { if (e.target.closest('#results li')) { $('search').hidden = true; $('searchBtn').classList.remove('on'); } });
+const controls = document.querySelector('.controls');
+controls.hidden = store.get('controlsHidden', false);
+$('settingsBtn').classList.toggle('on', !controls.hidden);
+$('settingsBtn').onclick = () => { controls.hidden = !controls.hidden; store.set('controlsHidden', controls.hidden); $('settingsBtn').classList.toggle('on', !controls.hidden); };
+document.querySelectorAll('.tabs a').forEach(a => a.addEventListener('click', () => {
+  document.querySelectorAll('.tabs a').forEach(x => x.classList.toggle('active', x === a));
+}));
+$('alertsGo').onclick = e => { e.preventDefault(); controls.hidden = false; $('settingsBtn').classList.add('on'); $('hero').scrollIntoView(); $('alerts').focus(); };
+let hourlyMode = 'hourly';
+function setHourlyMode(m) {
+  hourlyMode = m;
+  document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  document.querySelectorAll('.hour .rain').forEach(el => { el.hidden = m !== 'hourly'; });
+  document.querySelectorAll('.hour .wind').forEach(el => { el.hidden = m === 'hourly'; });
+}
+document.querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (b) setHourlyMode(b.dataset.mode); };
+$('hourly').addEventListener('scroll', () => {
+  const h = $('hourly'), w = h.clientWidth / h.scrollWidth;
+  $('hourlyBar').style.width = `${w * 100}%`;
+  $('hourlyBar').style.marginLeft = `${(h.scrollLeft / h.scrollWidth) * 100}%`;
+});
