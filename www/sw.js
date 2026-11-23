@@ -1,6 +1,6 @@
 /* Offline support: the app shell is cached; weather requests go to the network and fall back to
  * the last successful response, so the app still opens (with the last data) without internet. */
-const SHELL = 'rcbw-shell-v18';
+const SHELL = 'rcbw-shell-v19';
 const DATA = 'rcbw-data-v1';
 const FILES = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icons/app-192.png', './icons/app-512.png', './images/hero.jpg'];
 
