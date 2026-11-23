@@ -20,7 +20,7 @@ line = f"{sys.argv[1][4:12]}  {kind:15} {name} ({lat}, {lon})  provider: {prov} 
 f = os.environ["FILTER"].lower()
 if f == "--list": print(line); sys.exit()
 if f and f not in kind.lower(): sys.exit()
-req = urllib.request.Request(os.environ["API"] + "/test", data=json.dumps({"endpoint": ep}).encode(), headers={"content-type": "application/json"})
+req = urllib.request.Request(os.environ["API"] + "/test", data=json.dumps({"endpoint": ep}).encode(), headers={"content-type": "application/json", "User-Agent": "RCBWeather-send-test/1.0"})
 try: r = urllib.request.urlopen(req); print(line, "→ test sent")
 except Exception as e: print(line, "→", getattr(e, "read", lambda: str(e).encode())().decode())
 ' "$K"
