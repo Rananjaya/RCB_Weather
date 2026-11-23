@@ -1,7 +1,7 @@
 {
   "name": "rcb-weather",
   "productName": "RCB Weather",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "RCB Weather — live weather dashboard (MET Norway, Open-Meteo, OpenWeatherMap).",
   "main": "electron/main.js",
   "private": true,
