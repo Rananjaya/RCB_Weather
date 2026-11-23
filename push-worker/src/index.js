@@ -11,7 +11,9 @@
 // Air quality always comes from Open-Meteo (the only source). If a provider fails, Open-Meteo is
 // used instead. When an alert is due, the message is saved under "msg:<id>" (kept 1 day) and an
 // empty push is sent; the app's service worker fetches the message from /messages and shows it.
-// Pushes carry no data, so only the VAPID signature is needed.
+// The alert text travels inside the push, encrypted for that device (RFC 8291, aes128gcm), so
+// the phone shows it at once without fetching anything. A copy is also kept under "msg:<id>" for
+// app versions that fetch it from /messages.
 
 const AQI_LEVELS = [ // US EPA AQI, same as the app
   [50, 'Good', ''], [100, 'Moderate', ''],
@@ -57,8 +59,9 @@ export default {
         }));
         let pushed = null;
         if (b.welcome) { // confirm the whole push path with a real push
-          await env.SUBS.put('msg:' + id, JSON.stringify([{ title: 'RCB Weather alerts are on', body: `You will be told about bad air and heavy rain ahead for ${name} (${PROVIDERS[provider]}), even when the app is closed.`, tag: 'rcbw-test' }]), { expirationTtl: 86400 });
-          pushed = (await sendPush(s.endpoint, env)).status;
+          const welcome = [{ title: 'RCB Weather alerts are on', body: `You will be told about bad air and heavy rain ahead for ${name} (${PROVIDERS[provider]}), even when the app is closed.`, tag: 'rcbw-test' }];
+          await env.SUBS.put('msg:' + id, JSON.stringify(welcome), { expirationTtl: 86400 });
+          pushed = (await sendPush(s, env, welcome)).status;
         }
         return json({ ok: true, id, provider, pushed });
       }
@@ -72,10 +75,14 @@ export default {
         if (Date.now() - (sub.lastTest || 0) < 30e3) return json({ error: 'wait a moment before the next test' }, 429);
         sub.lastTest = Date.now();
         await env.SUBS.put('sub:' + id, JSON.stringify(sub));
-        await env.SUBS.put('msg:' + id, JSON.stringify([{ title: 'RCB Weather test alert', body: `Push alerts work on this device. Alerts for ${sub.name} use ${PROVIDERS[sub.provider] || 'Open-Meteo'}.`, tag: 'rcbw-test' }]), { expirationTtl: 3600 });
+        const test = [{ title: 'RCB Weather test alert', body: `Push alerts work on this device. Alerts for ${sub.name} use ${PROVIDERS[sub.provider] || 'Open-Meteo'}.`, tag: 'rcbw-test' }];
+        await env.SUBS.put('msg:' + id, JSON.stringify(test), { expirationTtl: 3600 });
         const delay = Math.min(Math.max(Number(b.delay) || 0, 0), 20) * 1000;
-        ctx.waitUntil(new Promise(r => setTimeout(r, delay)).then(() => sendPush(sub.sub.endpoint, env))
-          .then(r => console.log(`test push ${id.slice(0, 8)}: ${r.status}`)).catch(e => console.log(`test push ${id.slice(0, 8)} failed: ${e}`)));
+        ctx.waitUntil(new Promise(r => setTimeout(r, delay)).then(() => sendPush(sub.sub, env, test))
+          .then(async r => {
+            console.log(`test push ${id.slice(0, 8)}: ${r.status}`);
+            if (r.status === 404 || r.status === 410) { await env.SUBS.delete('sub:' + id); await env.SUBS.delete('msg:' + id); }
+          }).catch(e => console.log(`test push ${id.slice(0, 8)} failed: ${e}`)));
         return json({ ok: true, provider: PROVIDERS[sub.provider] || 'Open-Meteo', name: sub.name, delay: delay / 1000 });
       }
       if (url.pathname === '/unsubscribe' && req.method === 'POST') {
@@ -144,9 +151,9 @@ export async function checkAll(env, now = Date.now()) {
     const msgs = alertsFor(s, { hours, aqi: base.aqi, source }, now);
     if (!msgs.length) continue;
     const id = s.key.slice(4);
-    const queued = (await env.SUBS.get('msg:' + id, 'json')) || [];
-    await env.SUBS.put('msg:' + id, JSON.stringify([...queued, ...msgs].slice(-5)), { expirationTtl: 86400 });
-    const res = await sendPush(s.sub.endpoint, env);
+    // The alert travels inside the push (encrypted); the stored copy is only for older app versions.
+    await env.SUBS.put('msg:' + id, JSON.stringify(msgs), { expirationTtl: 86400 });
+    const res = await sendPush(s.sub, env, msgs);
     if (res.status === 404 || res.status === 410) { console.log(`removed expired device ${id.slice(0, 8)}`); await env.SUBS.delete(s.key); await env.SUBS.delete('msg:' + id); continue; }
     const { key, ...rest } = s;
     await env.SUBS.put(key, JSON.stringify(rest));
@@ -255,12 +262,43 @@ async function vapidJwt(aud, env) {
   return `${unsigned}.${b64url(new Uint8Array(sig))}`;
 }
 
-export async function sendPush(endpoint, env) {
-  const aud = new URL(endpoint).origin;
-  return fetch(endpoint, {
-    method: 'POST',
-    headers: { Authorization: `vapid t=${await vapidJwt(aud, env)}, k=${env.VAPID_PUBLIC}`, TTL: '3600', Urgency: 'high', 'Content-Length': '0' },
-  });
+// subscription: { endpoint, keys: { p256dh, auth } }. With messages, they are sent encrypted.
+export async function sendPush(subscription, env, messages) {
+  const { endpoint, keys } = subscription;
+  const headers = { Authorization: `vapid t=${await vapidJwt(new URL(endpoint).origin, env)}, k=${env.VAPID_PUBLIC}`, TTL: '3600', Urgency: 'high' };
+  let body = null;
+  if (messages?.length && keys?.p256dh && keys?.auth) {
+    body = await encryptPayload(new TextEncoder().encode(JSON.stringify(messages)), keys);
+    headers['Content-Encoding'] = 'aes128gcm';
+    headers['Content-Type'] = 'application/octet-stream';
+  } else headers['Content-Length'] = '0';
+  return fetch(endpoint, { method: 'POST', headers, body });
+}
+
+// Web Push message encryption (RFC 8291 with RFC 8188 aes128gcm, one record).
+async function hmac(key, data) {
+  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', k, data));
+}
+const concat = (...parts) => { const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; };
+const label = s => new TextEncoder().encode(s);
+async function hkdfExpand(prk, info, length) { return (await hmac(prk, concat(info, new Uint8Array([1])))).slice(0, length); }
+
+export async function encryptPayload(plaintext, keys) {
+  const uaPublic = fromB64url(keys.p256dh), authSecret = fromB64url(keys.auth);
+  const local = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPublic = new Uint8Array(await crypto.subtle.exportKey('raw', local.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', uaPublic, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, local.privateKey, 256));
+  const ikm = await hkdfExpand(await hmac(authSecret, shared), concat(label('WebPush: info\0'), uaPublic, asPublic), 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const prk = await hmac(salt, ikm);
+  const cek = await hkdfExpand(prk, label('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdfExpand(prk, label('Content-Encoding: nonce\0'), 12);
+  const aesKey = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, aesKey, concat(plaintext, new Uint8Array([2]))));
+  const header = new Uint8Array(21); header.set(salt); new DataView(header.buffer).setUint32(16, 4096); header[20] = asPublic.length;
+  return concat(header, asPublic, cipher);
 }
 
 // ---------------------------------------------------------------- OpenWeatherMap key encryption
