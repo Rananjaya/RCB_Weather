@@ -47,8 +47,8 @@ There are no accounts, ads, analytics or tracking.
 - Weather requests go straight from your device to the provider you choose, with your location
   rounded to about 1 km.
 - Place search uses Open-Meteo geocoding. With **My location**, the place name (for example
-  "Padukka") is looked up from your rounded position with BigDataCloud's free reverse-geocoding
-  service; the exact position is never sent.
+  "Padukka") is looked up from your position rounded to about 100 m with OpenStreetMap's Nominatim (BigDataCloud
+  as a backup); the exact position is never sent.
 - Your settings, including an OpenWeatherMap key, are stored only on your device. The key is sent
   only to OpenWeatherMap.
 - **Alerts (only if you turn them on):** to send alerts when the app is closed, the RCB Weather
