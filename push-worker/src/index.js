@@ -28,7 +28,7 @@ const UA = 'RCBWeatherAlerts/1.1 (+https://github.com/Rananjaya/RCB_Weather)';
 const PUSH_HOSTS = /(^|\.)(googleapis\.com|mozilla\.com|mozaws\.net|push\.apple\.com|notify\.windows\.com|push\.services\.mozilla\.com)$/;
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     const cors = corsHeaders(req, env);
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -61,6 +61,22 @@ export default {
           pushed = (await sendPush(s.endpoint, env)).status;
         }
         return json({ ok: true, id, provider, pushed });
+      }
+      if (url.pathname === '/test' && req.method === 'POST') {
+        // "Send test alert" in the app: a real push to this device after ~10 s (time to close the app).
+        const b = await req.json();
+        if (!b.endpoint) return json({ error: 'no endpoint' }, 400);
+        const id = await sha(b.endpoint);
+        const sub = await env.SUBS.get('sub:' + id, 'json');
+        if (!sub) return json({ error: 'not subscribed' }, 404);
+        if (Date.now() - (sub.lastTest || 0) < 30e3) return json({ error: 'wait a moment before the next test' }, 429);
+        sub.lastTest = Date.now();
+        await env.SUBS.put('sub:' + id, JSON.stringify(sub));
+        await env.SUBS.put('msg:' + id, JSON.stringify([{ title: 'RCB Weather test alert', body: `Push alerts work on this device. Alerts for ${sub.name} use ${PROVIDERS[sub.provider] || 'Open-Meteo'}.`, tag: 'rcbw-test' }]), { expirationTtl: 3600 });
+        const delay = Math.min(Math.max(Number(b.delay) || 0, 0), 20) * 1000;
+        ctx.waitUntil(new Promise(r => setTimeout(r, delay)).then(() => sendPush(sub.sub.endpoint, env))
+          .then(r => console.log(`test push ${id.slice(0, 8)}: ${r.status}`)).catch(e => console.log(`test push ${id.slice(0, 8)} failed: ${e}`)));
+        return json({ ok: true, provider: PROVIDERS[sub.provider] || 'Open-Meteo', name: sub.name, delay: delay / 1000 });
       }
       if (url.pathname === '/unsubscribe' && req.method === 'POST') {
         const b = await req.json();
@@ -131,11 +147,13 @@ export async function checkAll(env, now = Date.now()) {
     const queued = (await env.SUBS.get('msg:' + id, 'json')) || [];
     await env.SUBS.put('msg:' + id, JSON.stringify([...queued, ...msgs].slice(-5)), { expirationTtl: 86400 });
     const res = await sendPush(s.sub.endpoint, env);
-    if (res.status === 404 || res.status === 410) { await env.SUBS.delete(s.key); await env.SUBS.delete('msg:' + id); continue; }
+    if (res.status === 404 || res.status === 410) { console.log(`removed expired device ${id.slice(0, 8)}`); await env.SUBS.delete(s.key); await env.SUBS.delete('msg:' + id); continue; }
     const { key, ...rest } = s;
     await env.SUBS.put(key, JSON.stringify(rest));
     if (res.ok) sent++;
+    console.log(`alert ${id.slice(0, 8)} (${source}): ${msgs.map(m => m.title).join(', ')} → push ${res.status}`);
   }
+  console.log(`checked ${subs.length} devices, sent ${sent} alerts`);
   return { checked: subs.length, sent };
 }
 

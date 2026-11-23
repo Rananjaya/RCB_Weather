@@ -16,3 +16,7 @@ id = "31bbc158c1a0483e90839bda641030ec"
 VAPID_PUBLIC = "BAZG3q7Ru5jzaIrz1x1909hOXhlSw51ITSTixRoBv_CqNP_0lo27VzvHKQpZvuxZq04NCzErMwM9sOqil88560Y"
 VAPID_SUBJECT = "https://github.com/Rananjaya/RCB_Weather"
 ALLOWED_ORIGINS = "https://rananjaya.github.io,http://localhost:8080,http://localhost:8765"
+
+# Logs (alerts sent, test pushes) in the Cloudflare dashboard: Workers → rcb-weather-alerts → Logs.
+[observability]
+enabled = true
