@@ -242,3 +242,32 @@ i[data-i] svg { width: 100%; height: 100%; }
   .pill { padding: 10px 14px; }
   .now-icon { width: 96px; height: 96px; }
 }
+
+/* ---------------------------------------------------------------- phones: compact header, bottom tab bar */
+@media (max-width: 700px) {
+  body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .top { flex-wrap: nowrap; gap: 10px; padding-bottom: 10px; }
+  .brand { min-width: 0; gap: 8px; }
+  .brand img { width: 38px; height: 38px; }
+  .brand h1 { font-size: 1.2rem; white-space: nowrap; }
+  .actions { flex: none; }
+  .round, .pill { width: 40px; height: 40px; }
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; order: 0; width: auto;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; overflow: visible;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(17, 14, 36, .92); backdrop-filter: blur(14px); border-top: 1px solid var(--line);
+  }
+  .tabs a { flex-direction: column; gap: 3px; padding: 6px 2px; font-size: .7rem; border-radius: 14px; justify-content: center; white-space: nowrap; }
+  .tabs a i { width: 22px; height: 22px; }
+  .tabs a.active { box-shadow: none; }
+  .search { position: static; width: 100%; order: 5; }
+  .top:has(.search:not([hidden])) { flex-wrap: wrap; }
+  .search input, .controls select, .controls input { font-size: 16px; }
+  .results { top: auto; position: relative; margin-top: 6px; }
+  .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .controls label { min-width: 0; font-size: .8rem; gap: 4px; }
+  .controls label:last-child { grid-column: 1 / -1; }
+  .controls select, .controls input { width: 100%; padding: 9px 12px; }
+  .hero { padding: 16px 14px 18px; min-height: 0; }
+}
